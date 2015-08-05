@@ -9,11 +9,12 @@ public class Main {
 
         Chgitem chgitem = new Chgitem();
         chgitem.connect();
+
+
         chgitem.doing();
         chgitem.result();
+
         chgitem.disconnect();
 
-
     }
-
 }

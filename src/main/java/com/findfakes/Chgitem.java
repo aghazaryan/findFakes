@@ -1,6 +1,7 @@
 package com.findfakes;
 
 import com.mongodb.*;
+import org.bson.types.ObjectId;
 
 import java.util.*;
 
@@ -41,63 +42,70 @@ public class Chgitem {
             //entadrum em, vor bolor usernery metadata unen
             List result = fakePercent.get(user);
 
-            double percent = (Integer)result.get(0);
-            percent=(percent-1)*3;
-            percent = percent<15 ? percent:15;//metadata max 15
+            double percent = (Integer) result.get(0);
+            percent = (percent - 1) * 3;
+            percent = percent < 15 ? percent : 15;//metadata max 15
 
-            percent+=(Integer)result.get(1);//created max 10
-            percent+=(Integer)result.get(2);//photo max 3
-            percent+=(Integer)result.get(3);//follower max 3
+            percent += (Integer) result.get(1);//created max 10
+            percent += (Integer) result.get(2);//photo max 3
+            percent += (Integer) result.get(3);//follower max 3
 
-            percent*=(100/31);
+            percent *= (100 / 31);
 
 
-            System.out.println(user.get("name") + " - " + (int)percent + "%");
+            System.out.println(user.get("name") + " - " + (int) percent + "%");
         }
 
     }
 
-
-//    /**
-//     * user - fake percent and category , for example UserXXX - hly chgitem
-//     */
-//    public void advancedResult() {
-//        for (BasicDBObject user : fakePercent.keySet()) {
-//
-//            System.out.println(user.get("name") + " - " + fakePercent.get(user).get(3) + "%");
-//        }
-//
-//    }
-
     private List<DBObject> tagsContests() {
 
-        System.out.println("tagsContests");
+        System.out.println("tagsContests started");
         DBCollection tags = db.getCollection("tags");
 //        DBCursor cursor = tags.find(new BasicDBObject("ended"
 //                , new BasicDBObject("$gte", System.currentTimeMillis()))
 //                , new BasicDBObject("contests", 1).append("name", 1));
         DBCursor cursor = tags.find(new BasicDBObject(), new BasicDBObject("contests", 1).append("name", 1));
+        System.out.println("tagsContests ended");
         return cursor.toArray();
 
     }
 
     private List<DBObject> votes(BasicDBObject contest) {
 
+        System.out.println("votes started");
+
         DBCollection users = db.getCollection("users");
-        BasicDBList list = (BasicDBList) contest.get("votes");
+        // BasicDBList list = (BasicDBList) contest.get("votes");
+
+        BasicDBObject[] arr = toBasicDBObjArr(contest.get("votes").toString());
+        BasicDBList list = new BasicDBList();
+        for (BasicDBObject obj : arr) {
+            list.add(obj);
+        }
+        if (arr.length == 0) {
+            System.out.println("votes ended empty");
+            return new ArrayList<DBObject>();
+        }
         DBCursor cursor = users.find(new BasicDBObject("$or", list), new BasicDBObject("name", 1)
                 .append("metadata", 1)
                 .append("followers_count", 1)
                 .append("photos_count", 1)
                 .append("created", 1));
+        System.out.println("votes ended");
+
         return cursor.toArray();
     }
 
 
     private void calculating(BasicDBObject contestId) {
 
+        System.out.println("calculating started");
         DBCollection contestsColl = db.getCollection("contests");
-        BasicDBObject contests = (BasicDBObject) contestsColl.findOne(contestId);
+        BasicDBObject contests = (BasicDBObject) contestsColl.findOne(contestId
+                , new BasicDBObject("votes", 1)
+                .append("votes_count", 1)
+                .append("photo", 1));
         if (contests == null) {
 
             System.err.println("tenc contests id chkar");
@@ -128,29 +136,39 @@ public class Chgitem {
             }
         }
 
+        System.out.println("calculating ended");
+
     }
 
     public void doing() {
+        System.out.println("doing started");
         for (DBObject tag : tagsContests()) {
             System.out.println("for tag " + tag.get("name"));
             BasicDBList contestIDs = (BasicDBList) (tag.get("contests"));
 
             if (contestIDs != null) {
-                System.err.println(contestIDs.toString());
+                System.out.println(contestIDs.toString());
 
                 //BasicDBObject[] arr = contestIDs.toArray(new BasicDBObject[0]);
                 BasicDBObject[] arr = toBasicDBObjArr(contestIDs.toString());
 
-                for (BasicDBObject contestID : arr) {
+                for (BasicDBObject contestID : getMaxVotesContests(2, arr)) {
                     calculating(contestID);
                 }
             }
+
+            int i = 1;
+            if (i++ == 14) {
+                break;
+            }
         }
 
+        System.out.println("doing ended");
     }
 
     private void metadata(BasicDBObject contests) {
 
+        System.out.println("metadata started");
 
         Map<String, Integer> android = new HashMap<String, Integer>();
         Map<String, Integer> apple = new HashMap<String, Integer>();
@@ -163,6 +181,10 @@ public class Chgitem {
             }
             Object ip = metadata.get("ip");
             String platform = (String) metadata.get("platform");
+
+            if (ip == null || platform == null) {
+                continue;
+            }
 
             if (platform.equals("android")) {
                 if (android.get(ip) == null) {
@@ -212,15 +234,22 @@ public class Chgitem {
 
         }
 
+        System.out.println("metadata ended");
     }
 
     private int created(BasicDBObject contests, DBObject user) {
+        System.out.println("created started");
 
-        return (Integer) user.get("created") > (Integer) contests.get("created") ? 10 : 0;
+        String userDate = user.get("created").toString();
+        String contestDate = contests.get("created").toString();
+        System.out.println("created ended");
+
+        return userDate.compareTo(contestDate) > 0 ? 10 : 0;
 
     }
 
     private int photoCount(DBObject user) {
+
         int ret;
         return (ret = (Integer) user.get("photos_count")) < 4 ? 3 - ret : 0;
     }
@@ -232,6 +261,9 @@ public class Chgitem {
 
 
     private BasicDBObject[] toBasicDBObjArr(String str) {
+
+        System.out.println("toBasicDBObjArr started");
+
         int value = 3;
         String[] arr = str.split("\"");
         int n = (arr.length - 1) / 4;
@@ -239,10 +271,34 @@ public class Chgitem {
         BasicDBObject[] ret = new BasicDBObject[n];
 
         for (int i = 0; i < n; i++) {
-            ret[i] = new BasicDBObject("_id", arr[value]);
-            value += 2;
+            ret[i] = new BasicDBObject("_id", new ObjectId(arr[value]));
+            value += 4;
         }
+
+        System.out.println("toBasicDBObjArr ended");
         return ret;
     }
+
+
+    private BasicDBObject[] getMaxVotesContests(int size, BasicDBObject[] fromHear) {
+
+        System.out.println("getMaxVotesContests started");
+        DBCollection contests = db.getCollection("contests");
+        DBCursor cursor = contests.find(new BasicDBObject("$or", fromHear), new BasicDBObject("_id", 1).append("votes_count",1))
+                .sort(new BasicDBObject("votes_count", -1))
+                .limit(size);
+        int i = 0;
+
+        BasicDBObject[] ret = new BasicDBObject[size];
+
+        while (cursor.hasNext()) {
+            ret[i++] = (BasicDBObject) cursor.next();
+            System.out.println(ret[i-1].get("votes_count"));
+        }
+
+        System.out.println("getMaxVotesContests ended");
+        return ret;
+    }
+
 
 }
