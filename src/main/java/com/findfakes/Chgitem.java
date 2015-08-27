@@ -150,18 +150,18 @@ public class Chgitem {
 
     public void doing() {
         //System.out.println("doing started");
-        int i = 1;
+        //int i = 1;
         for (DBObject tag : tagsContests()) {
             //System.out.println("for tag " + tag.get("name"));
             BasicDBList contestIDs = (BasicDBList) (tag.get("contests"));
 
-            if (contestIDs == null) {
+            if (contestIDs != null) {
                 continue;
             }
             //System.out.println(contestIDs.toString());
 
-            //BasicDBObject[] arr = contestIDs.toArray(new BasicDBObject[0]);
-            BasicDBObject[] arr = toBasicDBObjArr(contestIDs.toString());//
+            BasicDBObject[] arr = contestIDs.toArray(new BasicDBObject[contestIDs.size()]);
+            ///BasicDBObject[] arr = toBasicDBObjArr(contestIDs.toString());//
 
             if (arr == null) {
                 continue;
@@ -169,9 +169,9 @@ public class Chgitem {
             for (BasicDBObject contestID : getMaxVotesContests(2, arr)) {
                 calculating(contestID);
             }
-            if (i++ == 18) {
-                break;
-            }
+//            if (i++ == 18) {
+//                break;
+//            }
         }
 
         //System.out.println("doing ended");

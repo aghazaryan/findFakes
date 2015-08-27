@@ -13,9 +13,14 @@ public class Other {
     private MongoClient client1 = null;
     private MongoClient client2 = null;
 
-    private DB db1;
+    private DB db1;     //  contests and tags collections are in db1.
     private DB db2;
 
+    /**
+     * @param quorum1 quorum for server instance that contain contests and tags collections
+     * @param quorum2 quorum for second part of db
+     * @param dbName  DB name
+     */
     public Other(String quorum1, String quorum2, String dbName) {
 
         client1 = new MongoClient(quorum1);
@@ -35,6 +40,13 @@ public class Other {
         }
     }
 
+
+    /**
+     * counting fake percent of contest
+     *
+     * @param tag     contest tag id
+     * @param photoId photo id
+     */
     public void forContest(ObjectId tag, Long photoId) {
 
         DBCollection contests = db1.getCollection("contests");
@@ -59,6 +71,23 @@ public class Other {
 
     }
 
+    /**
+     * counting fake percent of contest
+     *
+     * @param tagName tag name
+     * @param photoId photo id
+     */
+    public void forContest(String tagName, Long photoId) {
+
+        DBObject tagId = db1.getCollection("tags")
+                .findOne(new BasicDBObject("name", tagName)
+                        , new BasicDBObject("_id", 1));
+
+        ObjectId id = (ObjectId) tagId.get("_id");
+
+        forContest(id, photoId);
+    }
+
     private <T> List<T> getList(BasicDBList query, String projection) {
 
         List<T> ret = new ArrayList<T>();
@@ -68,19 +97,31 @@ public class Other {
 
         BasicDBObject proj = new BasicDBObject(projection, 1).append("_id", 0);
 
-        DBObject value;
-        int i = 0;
-        for (ObjectId obj : query.toArray(new ObjectId[query.size()])) {
-            i++;
-            if ((value = cl1.findOne(obj, proj)) != null) {
-                System.out.println(i);
-                ret.add((T) value.get(projection));
-            } else if ((value = cl2.findOne(obj, proj)) != null) {
-                System.out.println(i);
-                ret.add((T) value.get(projection));
-            }
+        ObjectId[] inThisArr = query.toArray(new ObjectId[query.size()]);
+
+
+        List<DBObject> result = cl1.find(new BasicDBObject("_id", new BasicDBObject("$in", inThisArr)), proj)
+                .toArray();
+        result.addAll(cl2.find(new BasicDBObject("_id", new BasicDBObject("$in", inThisArr)), proj)
+                .toArray());
+
+        for (DBObject dbObject : result) {
+            ret.add((T) dbObject.get(projection));
         }
-        System.out.println(i);
+
+//        DBObject value;
+//        int i = 0;
+//        for (ObjectId obj : query.toArray(new ObjectId[query.size()])) {
+//            i++;
+//            if ((value = cl1.findOne(obj, proj)) != null) {
+//                System.out.println(i);
+//                ret.add((T) value.get(projection));
+//            } else if ((value = cl2.findOne(obj, proj)) != null) {
+//                System.out.println(i);
+//                ret.add((T) value.get(projection));
+//            }
+//        }
+//        System.out.println(i);
         return ret;
     }
 
@@ -96,8 +137,8 @@ public class Other {
             int i = 0;
             for (Date d : created) {
 
-                System.out.println(d);
-                if (d.getTime() - begin.getTime() < 12 * 3600 * 1000) {
+                //    System.out.println(d);
+                if (d.getTime() - begin.getTime() < 12 * 3600 * 1000) {  //  different less than 12 hour
                     i++;
                 } else {
                     begin = d;
@@ -107,6 +148,10 @@ public class Other {
                     i = 1;
                 }
             }
+            if (i > 1) {    //  checking last group
+                group--;
+            }
+
             return group * 100.0 / created.size();
         }
         return 100.0;
@@ -118,7 +163,7 @@ public class Other {
         Map<String, Integer> android = new HashMap<String, Integer>();
         Map<String, Integer> apple = new HashMap<String, Integer>();
 
-        if(metadata.size()==0){
+        if (metadata.size() == 0) {
             return 100.0;
         }
 
@@ -136,8 +181,8 @@ public class Other {
                         int newValue = android.get(ip) + 1;
                         android.put((String) ip, newValue);
                     }
-
                 }
+
                 if (platform.equals("apple")) {
                     if (apple.get(ip) == null) {
                         apple.put((String) ip, 1);
@@ -150,17 +195,4 @@ public class Other {
         }
         return (apple.size() + android.size()) * 100.0 / metadata.size();
     }
-
-    public void forContest(String tagName, Long photoId){
-        DBObject tagId = db1.getCollection("tags")
-                .findOne(new BasicDBObject("name",tagName)
-                        ,new BasicDBObject("_id",1));
-
-
-        ObjectId id = (ObjectId)tagId.get("_id");
-
-        forContest(id,photoId);
-    }
-
-
 }
