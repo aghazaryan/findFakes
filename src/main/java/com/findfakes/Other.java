@@ -40,7 +40,6 @@ public class Other {
         }
     }
 
-
     /**
      * counting fake percent of contest
      *
@@ -54,7 +53,8 @@ public class Other {
         BasicDBObject query = new BasicDBObject("tag", tag)
                 .append("photo_id", photoId);
         BasicDBObject projection = new BasicDBObject("votes", 1)
-                .append("created", 1);
+                .append("created", 1)
+                .append("_id", 0);
         DBObject contest = contests.findOne(query, projection);
 
         if (contest == null) {
@@ -99,14 +99,14 @@ public class Other {
 
         ObjectId[] inThisArr = query.toArray(new ObjectId[query.size()]);
 
+        DBCursor result1 = cl1.find(new BasicDBObject("_id", new BasicDBObject("$in", inThisArr)), proj);
+        DBCursor result2 = cl2.find(new BasicDBObject("_id", new BasicDBObject("$in", inThisArr)), proj);
 
-        List<DBObject> result = cl1.find(new BasicDBObject("_id", new BasicDBObject("$in", inThisArr)), proj)
-                .toArray();
-        result.addAll(cl2.find(new BasicDBObject("_id", new BasicDBObject("$in", inThisArr)), proj)
-                .toArray());
-
-        for (DBObject dbObject : result) {
-            ret.add((T) dbObject.get(projection));
+        while (result1.hasNext()) {
+            ret.add((T) result1.next().get(projection));
+        }
+        while (result2.hasNext()) {
+            ret.add((T) result2.next().get(projection));
         }
 
 //        DBObject value;
@@ -175,21 +175,11 @@ public class Other {
             if (ip != null && platform != null) {
 
                 if (platform.equals("android")) {
-                    if (android.get(ip) == null) {
-                        android.put((String) ip, 1);
-                    } else {
-                        int newValue = android.get(ip) + 1;
-                        android.put((String) ip, newValue);
-                    }
+                    android.put((String) ip, 1);
                 }
 
                 if (platform.equals("apple")) {
-                    if (apple.get(ip) == null) {
-                        apple.put((String) ip, 1);
-                    } else {
-                        int newValue = apple.get(ip) + 1;
-                        apple.put((String) ip, newValue);
-                    }
+                    apple.put((String) ip, 1);
                 }
             }
         }
